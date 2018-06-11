@@ -1,0 +1,1747 @@
+---
+title: "Smoking Habits"
+author: "Yalim Demirkesen"
+date: "June 11, 2018"
+output: html_document
+---
+
+
+The responses csv is uploaded to R:
+
+```{r}
+responses <- read.csv("C:\\Users\\demir\\OneDrive\\NEU\\Fall 2017\\DA 5030\\Project\\Young People\\responses.csv")
+```
+
+# 2.3. Data Cleaning Assesment
+
+# 2.3.1. Dealing with Outliers
+
+First we need to consider the columns that range other than [1;5]! These are age, height, weight and number of spouse. 
+We will check if there are age values smaller than 15 or larger than 30.
+
+```{r}
+which(responses$Age>30)
+which(15>responses$Age)
+```
+
+There are no age values out of our range. Now we should check the outliers in height using z-score test:
+
+$$ z=\frac{x_i-\bar{x}}{\sigma} $$
+
+```{r}
+mean_height <- mean(responses$Height, na.rm = T)
+sd_height <- sd(responses$Height, na.rm = T)
+z_score_height <- abs((mean_height - responses$Height) / sd_height)
+o1 <- which(z_score_height>3)
+o1
+```
+
+There is just one height value that is out of three standard deviations. We will delete that row.
+
+```{r}
+responses2 <- responses[-o1,]
+```
+
+We will do the same for the weight:
+
+```{r}
+mean_weight <- mean(responses2$Weight, na.rm = T)
+sd_weight <- sd(responses2$Weight, na.rm = T)
+z_score_weight <- abs((mean_weight - responses2$Weight) / sd_weight)
+o2 <- which(z_score_weight>3)
+o2
+```
+
+We deleted additional 9 columns since they are outliers.
+
+```{r}
+responses3 <- responses2[-o2,]
+```
+
+Now check the number of siblings:
+
+```{r}
+mean_siblings <- mean(responses3$Number.of.siblings, na.rm = T)
+sd_siblings <- sd(responses3$Number.of.siblings, na.rm = T)
+z_score_siblings <- abs((mean_siblings - responses2$Number.of.siblings) / sd_siblings)
+o3 <- which(z_score_siblings>3)
+o3
+```
+
+We deleted additional 13 columns since they are outliers.
+
+```{r}
+responses4 <- responses3[-o3,]
+```
+
+Now we will take into consideration the columns that involve values from 1 to 5. Since it is a survey that consist of 150 questions, participants might get bored towards the end. That means that just to finish the questionnaire, they can pick value to finish the questions. That's why calculating the outliers might be challenging in this dataset. What I will do is to check if most of the entries are the same. What I assume is; if the person picks an answer just to finish the assingment. they will be the same -most probably 1 or 5 since they are in the end. 
+
+In order to measure this, I will calculate the sum for each column that will be taken into consideration.
+
+```{r}
+vec1 <- c(74,75,108,109,133,141:150)
+responses_numeric <- responses4[,-vec1]
+```
+
+Calculate their sum in another column
+
+```{r}
+responses_numeric$Summation <- 0
+n <- (ncol(responses_numeric) - 1)
+for(i in 1:nrow(responses_numeric)){
+  responses_numeric$Summation[i] <- sum(responses_numeric[i,1:n], na.rm = T)
+}
+```
+
+We have the summation of the row values. With the help of z scores, I will see whether there are values significantly out of confidence interval:
+
+```{r}
+mean_summation <- mean(responses_numeric$Summation, na.rm = T)
+sd_summation <- sd(responses_numeric$Summation, na.rm = T)
+z_score_summation <- abs((mean_summation - responses_numeric$Summation) / sd_summation)
+o4 <- which(z_score_summation>3)
+o4
+```
+
+We deleted additional 4 columns since they are outliers when their summation of the rows is considered.
+
+```{r}
+responses5 <- responses4[-o4,]
+```
+
+So we got deleted 26 rows since they are outliers of different considerations, which makes almost 2.5% of all data!
+
+# 2.3.2. Dealing with Missing Values
+
+For missing values, I will basically have two approaches. If there is a missing value in categorical columns, I will delete them and if there are missing values in the numerical columns, I will replace them with the column means and round them up.
+
+First replacing the missing values with the mean: 
+
+```{r}
+for(i in 1:73){
+  responses5[is.na(responses5[,i]), i] <- mean(responses5[,i], na.rm = TRUE)
+}
+for(i in 76:107){
+  responses5[is.na(responses5[,i]), i] <- mean(responses5[,i], na.rm = TRUE)
+}
+for(i in 110:132){
+  responses5[is.na(responses5[,i]), i] <- mean(responses5[,i], na.rm = TRUE)
+}
+for(i in 134:140){
+  responses5[is.na(responses5[,i]), i] <- mean(responses5[,i], na.rm = TRUE)
+}
+```
+
+Rounding up:
+
+```{r}
+for(i in 1:73){
+  for(j in 1:nrow(responses5)){
+    responses5[j,i] <- round(responses5[j,i], digits = 0)
+  }
+}
+for(i in 76:107){
+  for(j in 1:nrow(responses5)){
+    responses5[j,i] <- round(responses5[j,i], digits = 0)
+  }
+}
+for(i in 110:132){
+ for(j in 1:nrow(responses5)){
+    responses5[j,i] <- round(responses5[j,i], digits = 0)
+  }
+}
+for(i in 134:140){
+  for(j in 1:nrow(responses5)){
+    responses5[j,i] <- round(responses5[j,i], digits = 0)
+  }
+}
+```
+
+To be sure that each NA has its value. 
+
+```{r}
+for(i in 1:nrow(responses5)){
+  for(j in 1:ncol(responses5)){
+    if(is.na(responses5[i,j]) == TRUE){
+      responses5[i,j] <- NA
+    }
+  }
+}
+```
+
+Considering other values, I decided to delete the missing values in all of the columns since I will be using them all in the model assesment. 
+
+```{r}
+responses6 <- responses5[!(is.na(responses5$Smoking) | responses5$Smoking == ""),]
+responses7 <- responses6[!(is.na(responses6$Alcohol) | responses6$Alcohol == ""),]
+responses8 <- responses7[!(is.na(responses7$Punctuality) | responses7$Punctuality == ""),]
+responses9 <- responses8[!(is.na(responses8$Lying) | responses8$Lying == ""),]
+responses10 <- responses9[!(is.na(responses9$Internet.usage) | responses9$Internet.usage == ""),]
+responses11 <- responses10[!(is.na(responses10$Gender) | responses10$Gender == ""),]
+responses12 <- responses11[!(is.na(responses11$Left...right.handed) | responses11$Left...right.handed == ""),]
+responses13 <- responses12[!(is.na(responses12$Education) | responses12$Education == ""),]
+responses14 <- responses13[!(is.na(responses13$Only.child) | responses13$Only.child == ""),]
+responses15 <- responses14[!(is.na(responses14$Village...town) | responses14$Village...town == ""),]
+responses16 <- responses15[!(is.na(responses15$House...block.of.flats) | responses15$House...block.of.flats == ""),]
+```
+
+After this operation we ended up deleting 9% data from the initial stage!
+
+# 2.6. Exploring Data
+
+```{r}
+library(ggplot2)
+ggplot(data=responses16, aes(x=Smoking)) + geom_bar()
+```
+
+Data suggest us that most common smoking habbit is trying smoking then comes never smoked people. Last two options are almost have the same number of answers. The next graph will come after the data preparation stage to have more detailed ones.
+
+```{r}
+ggplot(responses15, aes(Age, Smoking)) + geom_bar(data=subset(responses15,Smoking=="current smoker"),stat="identity")
+```
+
+Also, we figured out that current smokers are usually 18 to 21.
+
+# 2.7. DATA PREPARATION
+
+First we need to check our categorical values. If they can be written as numerical values, I will convert them to numerical values. If not, I will create dummies.
+
+5 of the categorical columns need to have dummy values because they consist of values that cannot be compared. Let's say in gender we cannot say female is bigger than male. We should assign them dummies. These five are; gender, left/right handed, only child, village/city, house type.
+
+6 of the categorical values can be classified as numbers. For instance we can scale the smoking habits very precisely. 1 for people who never smoked, 2 for people tried, 3 for old smokers, 4 for current smokers. This scale makes sense because it shows the correlation of the person with smoking cigarettes. These 6 are; smoking, alcohol, punctuality, lying, internet usage and education.
+
+For smoking
+
+```{r}
+responses16$Smoking <- as.character(responses16$Smoking)
+for(i in 1:nrow(responses16)){
+  if(responses16$Smoking[i] == "current smoker"){
+    responses16$Smoking[i] <- 4
+  }
+  if(responses16$Smoking[i] == "former smoker"){
+    responses16$Smoking[i] <- 3
+  }
+  if(responses16$Smoking[i] == "tried smoking"){
+    responses16$Smoking[i] <- 2
+  }
+  if(responses16$Smoking[i] == "never smoked"){
+    responses16$Smoking[i] <- 1
+  }
+}
+```
+
+For alcohol
+
+```{r}
+responses16$Alcohol <- as.character(responses16$Alcohol)
+for(i in 1:nrow(responses16)){
+  if(responses16$Alcohol[i] == "drink a lot"){
+    responses16$Alcohol[i] <- 3
+  }
+  if(responses16$Alcohol[i] == "social drinker"){
+    responses16$Alcohol[i] <- 2
+  }
+  if(responses16$Alcohol[i] == "never"){
+    responses16$Alcohol[i] <- 1
+  }
+}
+```
+
+For punctuality
+
+```{r}
+responses16$Punctuality <- as.character(responses16$Punctuality)
+for(i in 1:nrow(responses16)){
+  if(responses16$Punctuality[i] == "i am always on time"){
+    responses16$Punctuality[i] <- 3
+  }
+  if(responses16$Punctuality[i] == "i am often early"){
+    responses16$Punctuality[i] <- 2
+  }
+  if(responses16$Punctuality[i] == "i am often running late"){
+    responses16$Punctuality[i] <- 1
+  }
+}
+```
+
+For lying
+
+```{r}
+responses16$Lying <- as.character(responses16$Lying)
+for(i in 1:nrow(responses16)){
+  if(responses16$Lying[i] == "everytime it suits me"){
+    responses16$Lying[i] <- 4
+  }
+  if(responses16$Lying[i] == "sometimes"){
+    responses16$Lying[i] <- 3
+  }
+  if(responses16$Lying[i] == "only to avoid hurting someone"){
+    responses16$Lying[i] <- 2
+  }
+  if(responses16$Lying[i] == "never"){
+    responses16$Lying[i] <- 1
+  }
+}
+```
+
+For internet usage
+
+```{r}
+responses16$Internet.usage <- as.character(responses16$Internet.usage)
+for(i in 1:nrow(responses16)){
+  if(responses16$Internet.usage[i] == "most of the day"){
+    responses16$Internet.usage[i] <- 4
+  }
+  if(responses16$Internet.usage[i] == "few hours a day"){
+    responses16$Internet.usage[i] <- 3
+  }
+  if(responses16$Internet.usage[i] == "less than an hour a day"){
+    responses16$Internet.usage[i] <- 2
+  }
+  if(responses16$Internet.usage[i] == "no time at all"){
+    responses16$Internet.usage[i] <- 1
+  }
+}
+```
+
+For education
+
+```{r}
+responses16$Education <- as.character(responses16$Education)
+for(i in 1:nrow(responses16)){
+  if(responses16$Education[i] == "doctorate degree"){
+    responses16$Education[i] <- 6
+  }
+  if(responses16$Education[i] == "masters degree"){
+    responses16$Education[i] <- 5
+  }
+  if(responses16$Education[i] == "college/bachelor degree"){
+    responses16$Education[i] <- 4
+  }
+  if(responses16$Education[i] == "secondary school"){
+    responses16$Education[i] <- 3
+  }
+  if(responses16$Education[i] == "primary school"){
+    responses16$Education[i] <- 2
+  }
+  if(responses16$Education[i] == "currently a primary school pupil"){
+    responses16$Education[i] <- 1
+  }
+}
+```
+
+Now comes the dummies. Luckly we only have categorical values that consist of 2 values. Let's say in gender the possibilities are male or female. We will represent them as 1 and 0.
+
+For gender
+
+```{r}
+responses16$Gender <- as.character(responses16$Gender)
+for(i in 1:nrow(responses16)){
+  if(responses16$Gender[i] == "female"){
+    responses16$Gender[i] <- 1
+  }
+  if(responses16$Gender[i] == "male"){
+    responses16$Gender[i] <- 0
+  }
+}
+```
+
+For left/right handed
+
+```{r}
+responses16$Left...right.handed <- as.character(responses16$Left...right.handed)
+for(i in 1:nrow(responses16)){
+  if(responses16$Left...right.handed[i] == "left handed"){
+    responses16$Left...right.handed[i] <- 1
+  }
+  if(responses16$Left...right.handed[i] == "right handed"){
+    responses16$Left...right.handed[i] <- 0
+  }
+}
+```
+
+For being only child
+
+```{r}
+responses16$Only.child <- as.character(responses16$Only.child)
+for(i in 1:nrow(responses16)){
+  if(responses16$Only.child[i] == "yes"){
+    responses16$Only.child[i] <- 1
+  }
+  if(responses16$Only.child[i] == "no"){
+    responses16$Only.child[i] <- 0
+  }
+}
+```
+
+For village/town
+
+```{r}
+responses16$Village...town <- as.character(responses16$Village...town)
+for(i in 1:nrow(responses16)){
+  if(responses16$Village...town[i] == "village"){
+    responses16$Village...town[i] <- 1
+  }
+  if(responses16$Village...town[i] == "city"){
+    responses16$Village...town[i] <- 0
+  }
+}
+```
+
+For house type
+
+```{r}
+responses16$House...block.of.flats <- as.character(responses16$House...block.of.flats)
+for(i in 1:nrow(responses16)){
+  if(responses16$House...block.of.flats[i] == "house/bungalow"){
+    responses16$House...block.of.flats[i] <- 1
+  }
+  if(responses16$House...block.of.flats[i] == "block of flats"){
+    responses16$House...block.of.flats[i] <- 0
+  }
+}
+```
+
+```{r}
+responses16$Smoking <- as.numeric(as.character(responses16$Smoking))
+responses16$Alcohol <- as.numeric(as.character(responses16$Alcohol))
+responses16$Punctuality <- as.numeric(as.character(responses16$Punctuality))
+responses16$Lying <- as.numeric(as.character(responses16$Lying))
+responses16$Internet.usage <- as.numeric(as.character(responses16$Internet.usage))
+responses16$Gender <- as.numeric(as.character(responses16$Gender))
+responses16$Left...right.handed <- as.numeric(as.character(responses16$Left...right.handed))
+responses16$Education <- as.numeric(as.character(responses16$Education))
+responses16$Only.child <- as.numeric(as.character(responses16$Only.child))
+responses16$Village...town <- as.numeric(as.character(responses16$Village...town))
+responses16$House...block.of.flats <- as.numeric(as.character(responses16$House...block.of.flats))
+responses16$Age <- as.numeric(as.character(responses16$Age))
+responses16$Height <- as.numeric(as.character(responses16$Height))
+responses16$Weight <- as.numeric(as.character(responses16$Weight))
+responses16$Number.of.siblings <- as.numeric(as.character(responses16$Number.of.siblings))
+```
+
+```{r}
+mydata <- as.data.frame(responses16)
+```
+
+```{r}
+library(psych)
+pairs.panels(mydata[c("Entertainment.spending","Age", "Alcohol", "Smoking", "Music","Education","God")])
+```
+
+As we can see from the correlation matrix above, there are some correlation between smoking and alcohol. That was expected but unexpectedly, there is also a correlation with the amount of entertainment shopping and smoking.
+
+To have a more general idea of the correlation of smoking with the other features is using linear regression model:
+
+```{r}
+lmmodel <- lm(Smoking ~ ., data = mydata)
+summary(lmmodel)
+```
+
+So after having which predictors are signigicant and which are not, I will create another correlation panel:
+
+```{r}
+pairs.panels(mydata[c("Hiphop..Rap", "Age", "Weight", "Smoking", "Gender", "Waiting", "Alcohol", "Politics")])
+```
+
+From a detailed analysis, we can see that alcohol users have tendency to smoke.
+
+Other than the effect of others on smoking, there might be collinearity in the features. 
+
+```{r}
+pairs.panels(mydata[c("Flying", "Storm", "Darkness", "Heights", "Spiders", "Snakes", "Rats", "Ageing", "Dangerous.dogs", "Fear.of.public.speaking")])
+```
+
+Since the columns in the phobias are checked there are correlated columns. Let's say if a person is afraid of storm, it is likely that same person will be afraid of darkness.
+
+Now comes the normalization process with the help of min-max normalization:
+
+```{r}
+min_values <- matrix(0, nrow = ncol(mydata), ncol = 1)
+max_values <- matrix(0, nrow = ncol(mydata), ncol = 1)
+
+for(i in 1:ncol(mydata)){
+  min_values[i,1] <- min(mydata[,i], na.rm = T)
+  max_values[i,1] <- max(mydata[,i], na.rm = T)
+}
+```
+
+We used min max because we know that after excluding the outliers, rest were in a controlled range.
+
+```{r}
+for(i in 1:nrow(mydata)){
+  for(j in 1:ncol(mydata)){
+    mydata[i,j] <- (mydata[i,j] - min_values[j,1]) / (max_values[j,1] - min_values[j,1])
+  }
+}
+```
+
+# 3 MODELLING
+
+To have higher accuracies, I will group 4 clusters into 2 in the smoking habits columns. 0 will indicate the participants that have no relation with smoking cigarettes and 1 for participants who was or who is currently active smoker.
+
+```{r}
+for(i in 1:nrow(mydata)){
+  if(mydata$Smoking[i] < 0.5 ){
+    mydata$Smoking[i] <- 0
+  }
+  if(mydata$Smoking[i] > 0.5){
+    mydata$Smoking[i] <- 1
+  }
+}
+```
+
+I will create the training data. The training data will be accepted as 20 percent of all data. To assign the training data, index will be arranged for each row and then 20 percent of them will be selected, which makes 190 rows. To select the testing, I will choose the ones that can be divided by 5.
+
+Here I created index values. So now they will all cover values until the last row. With the help of this, I will be able to create the training datasets and can test my models 5 time. In other words I built a 5-fold cross-validation evalauation!
+
+```{r}
+cleandata <- na.omit(mydata)
+fold1 <- seq(from = 1, to = nrow(cleandata), by = 5)
+fold2 <- seq(from = 2, to = nrow(cleandata), by = 5)
+fold3 <- seq(from = 3, to = nrow(cleandata), by = 5)
+fold4 <- seq(from = 4, to = nrow(cleandata), by = 5)
+fold5 <- seq(from = 5, to = nrow(cleandata), by = 5)
+```
+
+```{r}
+testing1 <- cleandata[fold1,-74]
+testing2 <- cleandata[fold2,-74]
+testing3 <- cleandata[fold3,-74]
+testing4 <- cleandata[fold4,-74]
+testing5 <- cleandata[fold5,-74] 
+```
+
+```{r}
+training1 <- cleandata[-fold1,-74]
+training2 <- cleandata[-fold2,-74]
+training3 <- cleandata[-fold3,-74]
+training4 <- cleandata[-fold4,-74]
+training5 <- cleandata[-fold5,-74] 
+```
+
+```{r}
+testing1_target <- as.matrix(cleandata$Smoking[fold1])[1:nrow(testing1),]
+testing2_target <- as.matrix(cleandata$Smoking[fold2])[1:nrow(testing2),]
+testing3_target <- as.matrix(cleandata$Smoking[fold3])[1:nrow(testing3),]
+testing4_target <- as.matrix(cleandata$Smoking[fold4])[1:nrow(testing4),]
+testing5_target <- as.matrix(cleandata$Smoking[fold5])[1:nrow(testing5),]
+```
+
+```{r}
+training1_target <- as.matrix(na.omit(mydata$Smoking[-fold1]))[1:nrow(training1),]
+training2_target <- as.matrix(na.omit(mydata$Smoking[-fold2]))[1:nrow(training2),]
+training3_target <- as.matrix(na.omit(mydata$Smoking[-fold3]))[1:nrow(training3),]
+training4_target <- as.matrix(na.omit(mydata$Smoking[-fold4]))[1:nrow(training4),]
+training5_target <- as.matrix(na.omit(mydata$Smoking[-fold5]))[1:nrow(training5),]
+```
+
+So now I have 5 testing and 5 training data sets.
+
+# 3.1. K-Nearest Neigbors
+
+# 3.1.1. Training
+
+We need to download the package "class"
+
+```{r}
+library(class)
+```
+
+Since the square root of the number of rows is 31, I built the model as 31-nearest neigbors.
+
+```{r}
+test1pred <- knn(train = training1, test = testing1, cl = training1_target, k = 31)
+test2pred <- knn(train = training2, test = testing2, cl = training2_target, k = 31)
+test3pred <- knn(train = training3, test = testing3, cl = training3_target, k = 31)
+test4pred <- knn(train = training4, test = testing4, cl = training4_target, k = 31)
+test5pred <- knn(train = training5, test = testing5, cl = training5_target, k = 31)
+```
+
+# 3.1.2. Testing
+
+I will use a basic crosstable function to see the accuracy of my prediction!
+
+```{r}
+library(gmodels)
+```
+
+```{r}
+CrossTable(x = testing1_target, y = test1pred, prop.chisq = F)
+```
+
+```{r}
+CrossTable(x = testing2_target, y = test2pred, prop.chisq = F)
+```
+
+```{r}
+CrossTable(x = testing3_target, y = test3pred, prop.chisq = F)
+```
+
+```{r}
+CrossTable(x = testing4_target, y = test4pred, prop.chisq = F)
+```
+
+```{r}
+CrossTable(x = testing5_target, y = test5pred, prop.chisq = F)
+```
+
+The outcomes are low. So we need to improve the model. If we will have a better accuracy afterwards, I will update the accuracy scores.
+
+# 3.1.3 Improving the Model
+
+Now we can modify the model to increase the accuracy by changing the k value!
+
+```{r}
+test1.1pred <- knn(train = training1, test = testing1, cl = training1_target, k = 31)
+test2.1pred <- knn(train = training2, test = testing2, cl = training2_target, k = 33)
+test3.1pred <- knn(train = training3, test = testing3, cl = training3_target, k = 47)
+test4.1pred <- knn(train = training4, test = testing4, cl = training4_target, k = 27)
+test5.1pred <- knn(train = training5, test = testing5, cl = training5_target, k = 31)
+```
+
+```{r}
+CrossTable(x = testing1_target, y = test1.1pred, prop.chisq = F)
+```
+
+```{r}
+CrossTable(x = testing2_target, y = test2.1pred, prop.chisq = F)
+```
+
+```{r}
+CrossTable(x = testing3_target, y = test3.1pred, prop.chisq = F)
+```
+
+```{r}
+CrossTable(x = testing4_target, y = test4.1pred, prop.chisq = F)
+```
+
+```{r}
+CrossTable(x = testing5_target, y = test5.1pred, prop.chisq = F)
+```
+
+From what we have seen, there is a difference from our first trial but still the model is not very satisfactory. The results that we calculated are way off and the accuracy is particularly low. The min accuracy is 58% and max accuracy is 70%.
+
+# 3.2. Decision Tree
+
+We need to download the decision tree package which is C50.
+
+```{r}
+library(C50)
+```
+
+# 3.2.1. Training
+
+Since C50() function asks for factor entries for the target values, I need to use as.factor() function
+
+```{r}
+tree_training1_target <- as.factor(training1_target)
+tree_training2_target <- as.factor(training2_target)
+tree_training3_target <- as.factor(training3_target)
+tree_training4_target <- as.factor(training4_target)
+tree_training5_target <- as.factor(training5_target)
+```
+
+```{r}
+(decisiontree1 <- C5.0(training1, tree_training1_target))
+```
+
+```{r}
+decisiontree2 <- C5.0(training2, tree_training2_target)
+decisiontree3 <- C5.0(training3, tree_training3_target)
+decisiontree4 <- C5.0(training4, tree_training4_target)
+decisiontree5 <- C5.0(training5, tree_training5_target)
+```
+
+3.2.2. Testing
+
+Here we can see the decision tree. It is pretty complicated to understand but that was something we expected. To interpret the tree, we can say that if the interest to alternative rock is high and if the participants like children, the participant is non-smoker or tried smoking but doesn't have a tendency to smoke. The model guesses only one wrong under these circumstances out of 30 observations.
+
+```{r}
+summary(decisiontree1)
+```
+
+To test the accuracy:
+
+```{r}
+pred1 <- predict(decisiontree1, testing1)
+pred2 <- predict(decisiontree2, testing2)
+pred3 <- predict(decisiontree3, testing3)
+pred4 <- predict(decisiontree4, testing4)
+pred5 <- predict(decisiontree5, testing5)
+```
+
+After using the predict function, I will be able to see the predictions that are generated by decision tree model.
+
+```{r}
+CrossTable(testing1_target, pred1, prop.chisq = F, prop.c = F, prop.r = F)
+```
+
+```{r}
+CrossTable(testing2_target, pred2, prop.chisq = F, prop.c = F, prop.r = F)
+```
+
+```{r}
+CrossTable(testing3_target, pred3, prop.chisq = F, prop.c = F, prop.r = F)
+```
+
+```{r}
+CrossTable(testing4_target, pred4, prop.chisq = F, prop.c = F, prop.r = F)
+```
+
+```{r}
+CrossTable(testing5_target, pred5, prop.chisq = F, prop.c = F, prop.r = F)
+```
+
+Since there is room for improvement, I will want and see the effect of trial parameter in C50() function.
+
+# 3.3.3. Improving the Model
+
+```{r}
+decisiontree1.1 <- C5.0(training1, tree_training1_target, trials = 10)
+decisiontree2.1 <- C5.0(training2, tree_training2_target, trials = 10)
+decisiontree3.1 <- C5.0(training3, tree_training3_target, trials = 10)
+decisiontree4.1 <- C5.0(training4, tree_training4_target, trials = 10)
+decisiontree5.1 <- C5.0(training5, tree_training5_target, trials = 10)
+```
+
+```{r}
+pred1.1 <- predict(decisiontree1.1, testing1)
+pred2.1 <- predict(decisiontree2.1, testing2)
+pred3.1 <- predict(decisiontree3.1, testing3)
+pred4.1 <- predict(decisiontree4.1, testing4)
+pred5.1 <- predict(decisiontree5.1, testing5)
+```
+
+```{r}
+CrossTable(testing1_target, pred1.1, prop.chisq = F, prop.c = F, prop.r = F)
+```
+
+```{r}
+CrossTable(testing2_target, pred2.1, prop.chisq = F, prop.c = F, prop.r = F)
+```
+
+```{r}
+CrossTable(testing3_target, pred3.1, prop.chisq = F, prop.c = F, prop.r = F)
+```
+
+```{r}
+CrossTable(testing4_target, pred4.1, prop.chisq = F, prop.c = F, prop.r = F)
+```
+
+```{r}
+CrossTable(testing5_target, pred5.1, prop.chisq = F, prop.c = F, prop.r = F)
+```
+
+We added the trials parameter inside of the C50(). That means R, gathered information from as much as decision that we entered as trials. Since we entered 10, the background calculation considered 10 different decision trees and analyzed their responses. With this technique, we improved the accuracy from 54% to 66%.
+
+# 3.3 Support Vector Machine
+
+# 3.3.1. Training
+
+e1071 and kernlab are the packages that we need to 
+
+```{r}
+library(e1071)
+library(kernlab)
+```
+
+For these function, we need to revise our training and testing datasets. The matrix form is required to run the model.
+
+```{r}
+svm_testing1 <- mydata[fold1,]
+svm_testing2 <- mydata[fold2,]
+svm_testing3 <- mydata[fold3,]
+svm_testing4 <- mydata[fold4,]
+svm_testing5 <- mydata[fold5,] 
+```
+
+```{r}
+svm_training1 <- mydata[-fold1,]
+svm_training2 <- mydata[-fold2,]
+svm_training3 <- mydata[-fold3,]
+svm_training4 <- mydata[-fold4,]
+svm_training5 <- mydata[-fold5,] 
+```
+
+```{r}
+svm_testing1_target <- as.matrix(mydata$Smoking[fold1])
+svm_testing2_target <- as.matrix(mydata$Smoking[fold2])
+svm_testing3_target <- as.matrix(mydata$Smoking[fold3])
+svm_testing4_target <- as.matrix(mydata$Smoking[fold4])
+svm_testing5_target <- as.matrix(mydata$Smoking[fold5])
+```
+
+```{r}
+svm_training1_target <- as.matrix(na.omit(mydata$Smoking[-fold1]))
+svm_training2_target <- as.matrix(na.omit(mydata$Smoking[-fold2]))
+svm_training3_target <- as.matrix(na.omit(mydata$Smoking[-fold3]))
+svm_training4_target <- as.matrix(na.omit(mydata$Smoking[-fold4]))
+svm_training5_target <- as.matrix(na.omit(mydata$Smoking[-fold5]))
+```
+
+```{r}
+(smoking_classifier1 <- ksvm(Smoking ~ . , data = svm_training1, kernel = "vanilladot"))
+```
+
+```{r}
+smoking_classifier2 <- ksvm(Smoking ~ . , data = svm_training2, kernel = "vanilladot")
+smoking_classifier3 <- ksvm(Smoking ~ . , data = svm_training3, kernel = "vanilladot")
+smoking_classifier4 <- ksvm(Smoking ~ . , data = svm_training4, kernel = "vanilladot")
+smoking_classifier5 <- ksvm(Smoking ~ . , data = svm_training5, kernel = "vanilladot")
+```
+
+# 3.3.2 Testing
+
+Testing is performed with the help of a counting function. I basically classified the outcomes that are less than 0.45 as non-smokers and bigger than 0.45 as smokers. This method provided me 61% accuracy in the first model as you can see below.
+
+```{r}
+smoking_pred1 <- predict(smoking_classifier1, svm_testing1)
+
+for(i in 1:nrow(smoking_pred1)){
+  if(smoking_pred1[i] <0.45){
+    smoking_pred1[i] <- 0
+  }else{
+    smoking_pred1[i] <- 1
+  }
+}
+
+counter_svm <- 0
+for(i in 1:nrow(smoking_pred1)){
+  if(smoking_pred1[i] == svm_testing1_target[i]){
+    counter_svm <- counter_svm + 1
+  }
+}
+
+counter_svm/nrow(smoking_pred1)
+```
+
+```{r}
+smoking_pred2 <- predict(smoking_classifier2, svm_testing2)
+
+for(i in 1:nrow(smoking_pred2)){
+  if(smoking_pred2[i] < 0.45){
+    smoking_pred2[i] <- 0
+  }else{
+    smoking_pred2[i] <- 1
+  }
+}
+
+counter_svm2 <- 0
+for(i in 1:nrow(smoking_pred2)){
+  if(smoking_pred2[i] == svm_testing2_target[i]){
+    counter_svm2 <- counter_svm2 + 1
+  }
+}
+
+counter_svm2/nrow(smoking_pred2)
+```
+
+```{r}
+smoking_pred3 <- predict(smoking_classifier3, svm_testing3)
+
+for(i in 1:nrow(smoking_pred3)){
+  if(smoking_pred3[i] <0.45){
+    smoking_pred3[i] <- 0
+  }else{
+    smoking_pred3[i] <- 1
+  }
+}
+
+counter_svm <- 0
+for(i in 1:nrow(smoking_pred3)){
+  if(smoking_pred3[i] == svm_testing3_target[i]){
+    counter_svm <- counter_svm + 1
+  }
+}
+
+counter_svm/nrow(smoking_pred3)
+```
+
+```{r}
+smoking_pred4 <- predict(smoking_classifier4, svm_testing4)
+
+for(i in 1:nrow(smoking_pred4)){
+  if(smoking_pred4[i] <0.45){
+    smoking_pred4[i] <- 0
+  }else{
+    smoking_pred4[i] <- 1
+  }
+}
+
+counter_svm <- 0
+for(i in 1:nrow(smoking_pred4)){
+  if(smoking_pred4[i] == svm_testing4_target[i]){
+    counter_svm <- counter_svm + 1
+  }
+}
+
+counter_svm/nrow(smoking_pred4)
+```
+
+```{r}
+smoking_pred5 <- predict(smoking_classifier5, svm_testing5)
+
+for(i in 1:nrow(smoking_pred5)){
+  if(smoking_pred5[i] <0.45){
+    smoking_pred5[i] <- 0
+  }else{
+    smoking_pred5[i] <- 1
+  }
+}
+
+counter_svm <- 0
+for(i in 1:nrow(smoking_pred5)){
+  if(smoking_pred5[i] == svm_testing5_target[i]){
+    counter_svm <- counter_svm + 1
+  }
+}
+
+counter_svm/nrow(smoking_pred5)
+```
+
+# 3.3.3. Improving the Model
+
+```{r}
+(smoking_classifier1.1 <- ksvm(Smoking ~ . , data = svm_training1, kernel = "rbfdot"))
+```
+
+```{r}
+smoking_classifier2.1 <- ksvm(Smoking ~ . , data = svm_training2, kernel = "rbfdot")
+smoking_classifier3.1 <- ksvm(Smoking ~ . , data = svm_training3, kernel = "rbfdot")
+smoking_classifier4.1 <- ksvm(Smoking ~ . , data = svm_training4, kernel = "rbfdot")
+smoking_classifier5.1 <- ksvm(Smoking ~ . , data = svm_training5, kernel = "rbfdot")
+```
+
+```{r}
+smoking_pred1.1 <- predict(smoking_classifier1.1, svm_testing1)
+
+for(i in 1:nrow(smoking_pred1.1)){
+  if(smoking_pred1.1[i] <0.45){
+    smoking_pred1.1[i] <- 0
+  }else{
+    smoking_pred1.1[i] <- 1
+  }
+}
+
+counter_svm <- 0
+for(i in 1:nrow(smoking_pred1.1)){
+  if(smoking_pred1.1[i] == svm_testing1_target[i]){
+    counter_svm <- counter_svm + 1
+  }
+}
+
+counter_svm/nrow(smoking_pred1.1)
+```
+
+```{r}
+smoking_pred2.1 <- predict(smoking_classifier2.1, svm_testing2)
+
+for(i in 1:nrow(smoking_pred2.1)){
+  if(smoking_pred2.1[i] < 0.45){
+    smoking_pred2.1[i] <- 0
+  }else{
+    smoking_pred2.1[i] <- 1
+  }
+}
+
+counter_svm2 <- 0
+for(i in 1:nrow(smoking_pred2.1)){
+  if(smoking_pred2.1[i] == svm_testing2_target[i]){
+    counter_svm2 <- counter_svm2 + 1
+  }
+}
+
+counter_svm2/nrow(smoking_pred2.1)
+```
+
+```{r}
+smoking_pred3.1 <- predict(smoking_classifier3.1, svm_testing3)
+
+for(i in 1:nrow(smoking_pred3.1)){
+  if(smoking_pred3.1[i] <0.45){
+    smoking_pred3.1[i] <- 0
+  }else{
+    smoking_pred3.1[i] <- 1
+  }
+}
+
+counter_svm <- 0
+for(i in 1:nrow(smoking_pred3.1)){
+  if(smoking_pred3.1[i] == svm_testing3_target[i]){
+    counter_svm <- counter_svm + 1
+  }
+}
+
+counter_svm/nrow(smoking_pred3.1)
+```
+
+```{r}
+smoking_pred4.1 <- predict(smoking_classifier4.1, svm_testing4)
+
+for(i in 1:nrow(smoking_pred4.1)){
+  if(smoking_pred4.1[i] <0.45){
+    smoking_pred4.1[i] <- 0
+  }else{
+    smoking_pred4.1[i] <- 1
+  }
+}
+
+counter_svm <- 0
+for(i in 1:nrow(smoking_pred4.1)){
+  if(smoking_pred4.1[i] == svm_testing4_target[i]){
+    counter_svm <- counter_svm + 1
+  }
+}
+
+counter_svm/nrow(smoking_pred4.1)
+```
+
+```{r}
+smoking_pred5.1 <- predict(smoking_classifier5.1, svm_testing5)
+
+for(i in 1:nrow(smoking_pred5.1)){
+  if(smoking_pred5.1[i] <0.45){
+    smoking_pred5.1[i] <- 0
+  }else{
+    smoking_pred5.1[i] <- 1
+  }
+}
+
+counter_svm <- 0
+for(i in 1:nrow(smoking_pred5.1)){
+  if(smoking_pred5.1[i] == svm_testing5_target[i]){
+    counter_svm <- counter_svm + 1
+  }
+}
+
+counter_svm/nrow(smoking_pred5.1)
+```
+
+Changing the kernel is the way to try to improve the model. I tried to implement rbfdot. The results came slightly better. The accuracy range shifted to 58% to 62% from a lower range.
+
+# 3.4. Clustering
+
+In clustering, I also need to add the target variable to the model with the predictors.
+
+# 3.4.1. Training
+
+What I did in the training stage is, combining the predictor columns and target column. Then using kmeans() function from stats package, I created my clusters. Then the size and centers are dipslayed. Then for each point I calculated the distance to the clusters. At the end of having two distance data frames, I was able to understand which point was closer to which cluster. Then again using a count function, I was able to see the percentage value for my accuracy.
+
+```{r}
+cluster_training1 <- cbind(training1, training1_target)
+cluster_training2 <- cbind(training2, training2_target)
+cluster_training3 <- cbind(training3, training3_target)
+cluster_training4 <- cbind(training4, training4_target)
+cluster_training5 <- cbind(training5, training5_target)
+```
+
+```{r}
+myclusters1 <- kmeans(cluster_training1, 2)
+```
+
+```{r}
+myclusters1$size
+```
+
+```{r}
+myclusters1$centers[,150]
+```
+
+```{r}
+distance1.1 <- matrix(0, nrow = nrow(training1), ncol = ncol(training1))
+distance1.2 <- matrix(0, nrow = nrow(training1), ncol = ncol(training1))
+for(i in 1:nrow(training1)){
+  for(j in 1:ncol(training1)){
+    distance1.1[i,j] <- sqrt((training1[i,j] - myclusters1$centers[1,j])^2)
+    distance1.2[i,j] <- sqrt((training1[i,j] - myclusters1$centers[2,j])^2)
+  }
+}
+```
+
+```{r}
+distance1.1 <- as.data.frame(distance1.1)
+distance1.2 <- as.data.frame(distance1.2)
+
+for(i in 1:nrow(distance1.1)){
+  distance1.1$sum[1] <- sum(distance1.1[1,])
+  distance1.2$sum[1] <- sum(distance1.2[1,])
+}
+```
+
+```{r}
+for(i in 1:nrow(distance1.1)){
+  if(distance1.1$sum[i] < distance1.2$sum[i]){
+    distance1.1$pred[i] <- 0
+  }else{
+    distance1.1$pred[i] <- 1
+  }
+}
+```
+
+```{r}
+count <- 0
+
+for(i in 1:nrow(distance1.1)){
+  if(distance1.1$pred[i] == cluster_training1$training1_target[i]){
+    count <- count + 1
+  }
+}
+```
+
+```{r}
+count / nrow(distance1.1)
+```
+
+2nd fold:
+
+```{r}
+myclusters2 <- kmeans(cluster_training2, 2)
+```
+
+```{r}
+myclusters2$size
+```
+
+```{r}
+myclusters2$centers[,150]
+```
+
+```{r}
+distance2.1 <- matrix(0, nrow = nrow(training2), ncol = ncol(training2))
+distance2.2 <- matrix(0, nrow = nrow(training2), ncol = ncol(training2))
+for(i in 1:nrow(training2)){
+  for(j in 1:ncol(training2)){
+    distance2.1[i,j] <- sqrt((training2[i,j] - myclusters2$centers[1,j])^2)
+    distance2.2[i,j] <- sqrt((training2[i,j] - myclusters2$centers[2,j])^2)
+  }
+}
+```
+
+```{r}
+distance2.1 <- as.data.frame(distance2.1)
+distance2.2 <- as.data.frame(distance2.2)
+
+for(i in 1:nrow(distance2.1)){
+  distance2.1$sum[1] <- sum(distance2.1[1,])
+  distance2.2$sum[1] <- sum(distance2.2[1,])
+}
+```
+
+```{r}
+for(i in 1:nrow(distance2.1)){
+  if(distance2.1$sum[i] < distance2.2$sum[i]){
+    distance2.1$pred[i] <- 0
+  }else{
+    distance2.1$pred[i] <- 1
+  }
+}
+```
+
+```{r}
+count <- 0
+
+for(i in 1:nrow(distance2.1)){
+  if(distance2.1$pred[i] == cluster_training2$training2_target[i]){
+    count <- count + 1
+  }
+}
+```
+
+```{r}
+count / nrow(distance2.1)
+```
+
+3rd fold:
+
+```{r}
+myclusters3 <- kmeans(cluster_training3, 2)
+```
+
+```{r}
+myclusters3$size
+```
+
+```{r}
+myclusters3$centers[,150]
+```
+
+```{r}
+distance3.1 <- matrix(0, nrow = nrow(training3), ncol = ncol(training3))
+distance3.2 <- matrix(0, nrow = nrow(training3), ncol = ncol(training3))
+for(i in 1:nrow(training1)){
+  for(j in 1:ncol(training1)){
+    distance3.1[i,j] <- sqrt((training3[i,j] - myclusters3$centers[1,j])^2)
+    distance3.2[i,j] <- sqrt((training3[i,j] - myclusters3$centers[2,j])^2)
+  }
+}
+```
+
+```{r}
+distance3.1 <- as.data.frame(distance3.1)
+distance3.2 <- as.data.frame(distance3.2)
+
+for(i in 1:nrow(distance3.1)){
+  distance3.1$sum[1] <- sum(distance3.1[1,])
+  distance3.2$sum[1] <- sum(distance3.2[1,])
+}
+```
+
+```{r}
+for(i in 1:nrow(distance3.1)){
+  if(distance3.1$sum[i] < distance3.2$sum[i]){
+    distance3.1$pred[i] <- 0
+  }else{
+    distance3.1$pred[i] <- 1
+  }
+}
+```
+
+```{r}
+count <- 0
+
+for(i in 1:nrow(distance3.1)){
+  if(distance3.1$pred[i] == cluster_training3$training3_target[i]){
+    count <- count + 1
+  }
+}
+```
+
+```{r}
+count / nrow(distance3.1)
+```
+
+4th fold:
+
+```{r}
+myclusters4 <- kmeans(cluster_training4, 2)
+```
+
+```{r}
+myclusters4$size
+```
+
+```{r}
+myclusters4$centers[,150]
+```
+
+```{r}
+distance4.1 <- matrix(0, nrow = nrow(training4), ncol = ncol(training4))
+distance4.2 <- matrix(0, nrow = nrow(training4), ncol = ncol(training4))
+for(i in 1:nrow(training4)){
+  for(j in 1:ncol(training4)){
+    distance4.1[i,j] <- sqrt((training4[i,j] - myclusters4$centers[1,j])^2)
+    distance4.2[i,j] <- sqrt((training4[i,j] - myclusters4$centers[2,j])^2)
+  }
+}
+```
+
+```{r}
+distance4.1 <- as.data.frame(distance4.1)
+distance4.2 <- as.data.frame(distance4.2)
+
+for(i in 1:nrow(distance4.1)){
+  distance4.1$sum[1] <- sum(distance4.1[1,])
+  distance4.2$sum[1] <- sum(distance4.2[1,])
+}
+```
+
+```{r}
+for(i in 1:nrow(distance4.1)){
+  if(distance4.1$sum[i] < distance4.2$sum[i]){
+    distance4.1$pred[i] <- 0
+  }else{
+    distance4.1$pred[i] <- 1
+  }
+}
+```
+
+```{r}
+count <- 0
+
+for(i in 1:nrow(distance4.1)){
+  if(distance4.1$pred[i] == cluster_training4$training4_target[i]){
+    count <- count + 1
+  }
+}
+```
+
+```{r}
+count / nrow(distance4.1)
+```
+
+5th fold:
+
+```{r}
+myclusters5 <- kmeans(cluster_training5, 2)
+```
+
+```{r}
+myclusters5$size
+```
+
+```{r}
+myclusters5$centers[,150]
+```
+
+```{r}
+distance5.1 <- matrix(0, nrow = nrow(training5), ncol = ncol(training5))
+distance5.2 <- matrix(0, nrow = nrow(training5), ncol = ncol(training5))
+for(i in 1:nrow(training5)){
+  for(j in 1:ncol(training5)){
+    distance5.1[i,j] <- sqrt((training5[i,j] - myclusters5$centers[1,j])^2)
+    distance5.2[i,j] <- sqrt((training5[i,j] - myclusters5$centers[2,j])^2)
+  }
+}
+```
+
+```{r}
+distance5.1 <- as.data.frame(distance5.1)
+distance5.2 <- as.data.frame(distance5.2)
+
+for(i in 1:nrow(distance5.1)){
+  distance5.1$sum[1] <- sum(distance5.1[1,])
+  distance5.2$sum[1] <- sum(distance5.2[1,])
+}
+```
+
+```{r}
+for(i in 1:nrow(distance5.1)){
+  if(distance5.1$sum[i] < distance5.2$sum[i]){
+    distance5.1$pred[i] <- 0
+  }else{
+    distance5.1$pred[i] <- 1
+  }
+}
+```
+
+```{r}
+count <- 0
+
+for(i in 1:nrow(distance5.1)){
+  if(distance5.1$pred[i] == cluster_training5$training5_target[i]){
+    count <- count + 1
+  }
+}
+```
+
+```{r}
+count / nrow(distance5.1)
+```
+
+# 3.5 LINEAR REGRESSION
+
+# 3.5.1. Testing
+
+As we did in the first part there are lots of features with similar values. So I will create a new data frame combining those. For instance phobia section will be gathered under the column phobia
+
+```{r}
+newdata <- matrix(0, ncol = 7, nrow = nrow(mydata))
+colnames(newdata) <- c("music", "movie", "hobbies", "phobias", "health_habits", "spending", "Smoking")
+```
+
+```{r}
+mydata2 <- as.matrix(na.omit(mydata))
+```
+
+```{r}
+for(i in 1:nrow(mydata2)){
+newdata[i,1] <- mean(mydata2[i,1:19], na.rm = T)
+newdata[i,2] <- mean(mydata2[i,20:31], na.rm = T)
+newdata[i,3] <- mean(mydata2[i,32:63], na.rm = T)
+newdata[i,4] <- mean(mydata2[i,64:73], na.rm = T)
+newdata[i,5] <- mean(mydata2[i,74:76], na.rm = T)
+newdata[i,6] <- mean(mydata2[i,134:140], na.rm = T)
+newdata[i,7] <- mydata2[i,74]
+}
+```
+
+```{r}
+lmtesting1 <- newdata[fold1,]
+lmtesting2 <- newdata[fold2,]
+lmtesting3 <- newdata[fold3,]
+lmtesting4 <- newdata[fold4,]
+lmtesting5 <- newdata[fold5,] 
+```
+
+```{r}
+lmtraining1 <- newdata[-fold1,]
+lmtraining2 <- newdata[-fold2,]
+lmtraining3 <- newdata[-fold3,]
+lmtraining4 <- newdata[-fold4,]
+lmtraining5 <- newdata[-fold5,] 
+```
+
+```{r}
+lmtesting1_target <- (newdata[fold1,7])
+lmtesting2_target <- (newdata[fold2,7])
+lmtesting3_target <- (newdata[fold3,7])
+lmtesting4_target <- (newdata[fold4,7])
+lmtesting5_target <- (newdata[fold5,7])
+```
+
+```{r}
+lmtraining1_target <- (newdata[-fold1,7])
+lmtraining2_target <- (newdata[-fold2,7])
+lmtraining3_target <- (newdata[-fold3,7])
+lmtraining4_target <- (newdata[-fold4,7])
+lmtraining5_target <- (newdata[-fold5,7])
+```
+
+```{r}
+lmmodel1 <- lm(Smoking ~ ., data=as.data.frame(lmtraining1))
+summary(lmmodel1)
+```
+
+$$ smoking=-0.12-0.35*music-0.06*movie-0.23*hobbies-0.04*phobias+1.9*health\,habits-0.2*spending $$
+```{r}
+newdata <- as.data.frame(newdata)
+for(i in 1:nrow(newdata)){
+newdata$pred[i] <- -0.12-0.35*newdata$music[i]-0.06*newdata$movie[i]-0.23*newdata$hobbies[i] - 0.04*newdata$phobias[i] + 1.9*newdata$health_habits[i] - 0.2*newdata$spending[i]
+}
+```
+
+```{r}
+for(i in 1:nrow(newdata)){
+ if(newdata$pred[i]<0.5){
+   newdata$pred[i] <- 0
+ }else{
+   newdata$pred[i] <- 1
+ }
+}
+```
+
+```{r}
+count <- 0
+vv <- as.matrix(newdata[fold1,7])
+for(i in 1:nrow(vv)){
+ if(newdata$pred[i] == vv[i,1]){
+  count <- count + 1
+ }
+}
+count/nrow(vv)
+```
+
+```{r}
+count <- 0
+vv <- as.matrix(newdata[fold2,7])
+for(i in 1:nrow(vv)){
+ if(newdata$pred[i] == vv[i,1]){
+  count <- count + 1
+ }
+}
+count/nrow(vv)
+```
+
+```{r}
+count <- 0
+vv <- as.matrix(newdata[fold3,7])
+for(i in 1:nrow(vv)){
+ if(newdata$pred[i] == vv[i,1]){
+  count <- count + 1
+ }
+}
+count/nrow(vv)
+```
+
+```{r}
+count <- 0
+vv <- as.matrix(newdata[fold4,7])
+for(i in 1:nrow(vv)){
+ if(newdata$pred[i] == vv[i,1]){
+  count <- count + 1
+ }
+}
+count/nrow(vv)
+```
+
+```{r}
+count <- 0
+vv <- as.matrix(newdata[fold5,7])
+for(i in 1:nrow(vv)){
+ if(newdata$pred[i] == vv[i,1]){
+  count <- count + 1
+ }
+}
+count/nrow(vv)
+```
+
+# 3.5.2 Testing
+
+```{r}
+count <- 0
+vv <- as.matrix(newdata[-fold1,7])
+for(i in 1:nrow(vv)){
+ if(newdata$pred[i] == vv[i,1]){
+  count <- count + 1
+ }
+}
+count/nrow(vv)
+```
+
+```{r}
+count <- 0
+vv <- as.matrix(newdata[-fold2,7])
+for(i in 1:nrow(vv)){
+ if(newdata$pred[i] == vv[i,1]){
+  count <- count + 1
+ }
+}
+count/nrow(vv)
+```
+
+```{r}
+count <- 0
+vv <- as.matrix(newdata[-fold3,7])
+for(i in 1:nrow(vv)){
+ if(newdata$pred[i] == vv[i,1]){
+  count <- count + 1
+ }
+}
+count/nrow(vv)
+```
+
+```{r}
+count <- 0
+vv <- as.matrix(newdata[-fold4,7])
+for(i in 1:nrow(vv)){
+ if(newdata$pred[i] == vv[i,1]){
+  count <- count + 1
+ }
+}
+count/nrow(vv)
+```
+
+```{r}
+count <- 0
+vv <- as.matrix(newdata[-fold5,7])
+for(i in 1:nrow(vv)){
+ if(newdata$pred[i] == vv[i,1]){
+  count <- count + 1
+ }
+}
+count/nrow(vv)
+```
+
+# 2.5.3 Improving The Model
+
+```{r}
+lmmodel2 <- lm(Smoking ~ music + movie + hobbies + health_habits + spending, data=as.data.frame(lmtraining1))
+summary(lmmodel2)
+```
+
+```{r}
+lmmodel3 <- lm(Smoking ~ music +hobbies + health_habits + spending, data=as.data.frame(lmtraining1))
+summary(lmmodel3)
+```
+
+$$ smoking=-0.12-0.39*music-0.25*hobbies+1.9*health\,habits-0.22*spending  $$
+
+```{r}
+newdata <- as.data.frame(newdata)
+for(i in 1:nrow(newdata)){
+newdata$pred[i] <- -0.12-0.39*newdata$music[i]-0.25*newdata$hobbies[i]+ 1.9*newdata$health_habits[i] - 0.22*newdata$spending[i]
+}
+```
+
+```{r}
+for(i in 1:nrow(newdata)){
+ if(newdata$pred[i]<0.5){
+   newdata$pred[i] <- 0
+ }else{
+   newdata$pred[i] <- 1
+ }
+}
+```
+
+```{r}
+count <- 0
+vv <- as.matrix(newdata[fold1,7])
+for(i in 1:nrow(vv)){
+ if(newdata$pred[i] == vv[i,1]){
+  count <- count + 1
+ }
+}
+count/nrow(vv)
+```
+
+```{r}
+count <- 0
+vv <- as.matrix(newdata[fold2,7])
+for(i in 1:nrow(vv)){
+ if(newdata$pred[i] == vv[i,1]){
+  count <- count + 1
+ }
+}
+count/nrow(vv)
+```
+
+```{r}
+count <- 0
+vv <- as.matrix(newdata[fold3,7])
+for(i in 1:nrow(vv)){
+ if(newdata$pred[i] == vv[i,1]){
+  count <- count + 1
+ }
+}
+count/nrow(vv)
+```
+
+```{r}
+count <- 0
+vv <- as.matrix(newdata[fold4,7])
+for(i in 1:nrow(vv)){
+ if(newdata$pred[i] == vv[i,1]){
+  count <- count + 1
+ }
+}
+count/nrow(vv)
+```
+
+```{r}
+count <- 0
+vv <- as.matrix(newdata[fold5,7])
+for(i in 1:nrow(vv)){
+ if(newdata$pred[i] == vv[i,1]){
+  count <- count + 1
+ }
+}
+count/nrow(vv)
+```
+
+
+```{r}
+count <- 0
+vv <- as.matrix(newdata[-fold1,7])
+for(i in 1:nrow(vv)){
+ if(newdata$pred[i] == vv[i,1]){
+  count <- count + 1
+ }
+}
+count/nrow(vv)
+```
+
+```{r}
+count <- 0
+vv <- as.matrix(newdata[-fold2,7])
+for(i in 1:nrow(vv)){
+ if(newdata$pred[i] == vv[i,1]){
+  count <- count + 1
+ }
+}
+count/nrow(vv)
+```
+
+```{r}
+count <- 0
+vv <- as.matrix(newdata[-fold3,7])
+for(i in 1:nrow(vv)){
+ if(newdata$pred[i] == vv[i,1]){
+  count <- count + 1
+ }
+}
+count/nrow(vv)
+```
+
+```{r}
+count <- 0
+vv <- as.matrix(newdata[-fold4,7])
+for(i in 1:nrow(vv)){
+ if(newdata$pred[i] == vv[i,1]){
+  count <- count + 1
+ }
+}
+count/nrow(vv)
+```
+
+```{r}
+count <- 0
+vv <- as.matrix(newdata[-fold5,7])
+for(i in 1:nrow(vv)){
+ if(newdata$pred[i] == vv[i,1]){
+  count <- count + 1
+ }
+}
+count/nrow(vv)
+```
+
+I started with performing the equation out of the summary function. that gave me a list of predicators. They each had p values. In the first two steps, I didn't take into consideration their significances. Then calculated the accuracy on the model. What my suggested that I reached an accuracy level of on average 52%. Then in the improvement stage, I used the backweise elimination. That happens simply by deleting the predictor with highes p value. The higher p value gets, less significant the predictor becomes.
+
+
+
+# 5 CONCLUSION
+
+After running each and every one of the code, I can say that I am not satisfied with the results. At the end our prediction abilities are limited with the data. What I analyzed from this point on is the percentages of the numeric values. I think this might play a bigger role because if we have too many 3's, it means that the participant are not showing any bias. That is why they don't effect the models.
+
+```{r}
+library(tidyr)
+a <- tidyr::gather(responses_numeric[,-136])
+head(a)
+```
+
+I combined each column and got a huge data frame that has all the numeric entries that are from 1 to 5.
+
+```{r}
+ones <- 0
+twos <- 0
+threes <- 0
+fours <- 0
+fives <- 0
+
+a <- na.omit(a)
+
+for(i in 1:nrow(a)){
+  if(a$value[i] == 1){
+    ones <- ones + 1
+  }
+  if(a$value[i] == 2){
+    twos <- twos + 1
+  }
+  if(a$value[i] == 3){
+    threes <- threes + 1
+  }
+  if(a$value[i] == 4){
+    fours <- fours + 1
+  }
+  if(a$value[i] == 5){
+    fives <- fives + 1
+  }
+}
+```
+
+```{r}
+b <- rbind(ones, twos, threes, fours, fives)
+colnames(b) <- c("Observations")
+b
+```
+
+```{r}
+library(plotrix)
+# Create data for the graph.
+x <- c(22889, 23489, 34158, 26696, 25622)
+labels <- c("1", "2", "3", "4","5")
+ppercent<- round(100*x/sum(x), 1)
+pie3D(x,labels = ppercent, main = "Distribution of the Survey Answers") +
+legend("topright", c("1","2","3","4","5"), cex = 0.8,
+   fill = rainbow(length(x)))
+```
+
+Here, we can see the huge amount of 3s. They are more than one fourth of the whole data. That means the participants didn't have a specific bias at those matters. Somehow, they are missing values. Maybe one way of improving the model can be eliminating answers 3. Then we will have a much shorter dataset but that might be more healthier to analyze. To be able to analyze and drive solution, I would expect high percentages in 1 or 5, then in 2 or 4 and then 3.  In our case, it is almost the opposite. Since this is the issue, I think the methods that I have picked don't play a role in the accuracy values. Since they were more or less the same.
+
+Detailed conclusion can be found in the paper...
+
+# THE END
+
+
+
+
+
+
+
+
+
+
+
+
+
+
