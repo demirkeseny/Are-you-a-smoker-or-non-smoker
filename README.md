@@ -1,9 +1,13 @@
 # Are-you-a-smoker-or-non-smoker-
 Deciding smoking habits of survey participants considering the answers they gave to non-related questions
+
 Project (Signature Assignment)
 The signature project provides you with an opportunity to complete a substantial effort where you showcase your understanding of the machine learning and data mining techniques studied in the course.
+
 Identify a data set that you want to explore and for which you can build a minimum of three appropriate and useful machine learning or data mining models.
+
 Your effort must follow the CRISP-DM process and addresses business understanding, definition of the problem to be solved, data sources, data cleaning efforts, assessment of data quality, exploration of the data, transformations, imputation, case elimination, training vs validation data set division strategy, model selection, model tuning, evaluation, accuracy, etc.
+
 Explain in detail what you did, show your R code in an R Notebook, and explain why you chose this approach versus other possible approaches.
 Your models must be evaluated and compared using appropriate methods, e.g., MAD, MSE, RMSE, accuracy, AUC, R-Squared, etc.
 You must construct an ensemble learner from your models and also evaluate the ensemble.
